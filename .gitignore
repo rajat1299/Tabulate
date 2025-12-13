@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Project reference documentation
+PROJECT_REFERENCE.md
+
+# Build outputs
+dist/
+*.log
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+node_modules
