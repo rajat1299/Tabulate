@@ -2,7 +2,7 @@
 node_modules/
 
 # Project reference documentation
-PROJECT_REFERENCE.md
+Intent-Tab-Organizer-Spec.docx
 
 # Build outputs
 dist/
