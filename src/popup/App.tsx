@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Layers, BookmarkPlus, Settings, Loader2, Globe, RefreshCw } from 'lucide-react'
+import { Layers, BookmarkPlus, Settings, Loader2, Globe, RefreshCw, ChevronDown, ChevronUp, FileText } from 'lucide-react'
 import type { TabData, MessageResponse } from '@/types'
 
 type TabView = 'organize' | 'saved'
@@ -227,28 +227,74 @@ interface TabItemProps {
 }
 
 function TabItem({ tab }: TabItemProps) {
+  const [expanded, setExpanded] = useState(false)
+  const hasMetadata = tab.description || tab.ogTags || tab.contentSnippet
+
   return (
-    <div className="flex items-center gap-3 p-2.5 bg-surface rounded-lg border border-border hover:border-primary/30 transition-colors">
-      {tab.favicon ? (
-        <img
-          src={tab.favicon}
-          alt=""
-          className="w-5 h-5 rounded flex-shrink-0"
-          onError={(e) => {
-            e.currentTarget.style.display = 'none'
-            e.currentTarget.nextElementSibling?.classList.remove('hidden')
-          }}
+    <div className="bg-surface rounded-lg border border-border hover:border-primary/30 transition-colors">
+      <div
+        className="flex items-center gap-3 p-2.5 cursor-pointer"
+        onClick={() => hasMetadata && setExpanded(!expanded)}
+      >
+        {tab.favicon ? (
+          <img
+            src={tab.favicon}
+            alt=""
+            className="w-5 h-5 rounded flex-shrink-0"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+              e.currentTarget.nextElementSibling?.classList.remove('hidden')
+            }}
+          />
+        ) : null}
+        <Globe
+          className={`w-5 h-5 text-text-muted flex-shrink-0 ${tab.favicon ? 'hidden' : ''}`}
         />
-      ) : null}
-      <Globe
-        className={`w-5 h-5 text-text-muted flex-shrink-0 ${tab.favicon ? 'hidden' : ''}`}
-      />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-text-primary truncate">
-          {tab.title}
-        </p>
-        <p className="text-xs text-text-secondary truncate">{tab.domain}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-text-primary truncate">
+            {tab.title}
+          </p>
+          <p className="text-xs text-text-secondary truncate">{tab.domain}</p>
+        </div>
+        {hasMetadata && (
+          <div className="flex items-center gap-1 text-text-muted">
+            <FileText className="w-3.5 h-3.5" />
+            {expanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </div>
+        )}
       </div>
+      {expanded && hasMetadata && (
+        <div className="px-3 pb-3 pt-0 border-t border-border/50">
+          {(tab.description || tab.ogTags?.description) && (
+            <p className="text-xs text-text-secondary mt-2 line-clamp-2">
+              {tab.description || tab.ogTags?.description}
+            </p>
+          )}
+          {tab.ogTags && (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {tab.ogTags.type && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                  {tab.ogTags.type}
+                </span>
+              )}
+              {tab.ogTags.title && tab.ogTags.title !== tab.title && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-background text-text-muted rounded truncate max-w-[200px]">
+                  og: {tab.ogTags.title}
+                </span>
+              )}
+            </div>
+          )}
+          {tab.contentSnippet && !tab.description && !tab.ogTags?.description && (
+            <p className="text-xs text-text-muted mt-2 line-clamp-2 italic">
+              {tab.contentSnippet.slice(0, 150)}...
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }

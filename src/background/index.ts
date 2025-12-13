@@ -1,4 +1,5 @@
 import type { MessageRequest, MessageResponse, Workspace } from '@/types'
+import { getAllTabsWithMetadata } from './tabManager'
 
 console.log('Intent Tab Organizer: Service worker initialized')
 
@@ -54,39 +55,16 @@ async function handleMessage(request: MessageRequest): Promise<MessageResponse> 
 
 async function analyzeTabs(): Promise<MessageResponse> {
   try {
-    // Get all tabs from current window
-    const tabs = await chrome.tabs.query({})
+    // Get all tabs with enriched metadata (description, OG tags, content snippet)
+    const tabs = await getAllTabsWithMetadata()
 
-    // Filter out protected tabs (chrome://, about://, etc.)
-    const accessibleTabs = tabs.filter((tab) => {
-      if (!tab.url) return false
-      const url = tab.url.toLowerCase()
-      return (
-        !url.startsWith('chrome://') &&
-        !url.startsWith('chrome-extension://') &&
-        !url.startsWith('about:') &&
-        !url.startsWith('edge://') &&
-        !url.startsWith('brave://')
-      )
-    })
-
-    console.log(`Found ${accessibleTabs.length} accessible tabs`)
-
-    // For now, return basic tab data (LLM integration will come in Phase 3)
-    const tabData = accessibleTabs.map((tab) => ({
-      id: tab.id!,
-      url: tab.url!,
-      title: tab.title || 'Untitled',
-      domain: new URL(tab.url!).hostname,
-      favicon: tab.favIconUrl || '',
-      lastAccessed: Date.now(),
-    }))
+    console.log(`Analyzed ${tabs.length} tabs with metadata`)
 
     return {
       success: true,
       data: {
-        tabs: tabData,
-        message: 'Tab analysis ready for LLM integration',
+        tabs,
+        message: 'Tab analysis complete with metadata',
       },
     }
   } catch (error) {
