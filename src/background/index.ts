@@ -3,7 +3,7 @@ import { getAllTabsWithMetadata } from './tabManager'
 import { clusterTabs, setApiKey, hasApiKey } from './llmService'
 import { v4 as uuidv4 } from 'uuid'
 
-console.log('Intent Tab Organizer: Service worker initialized')
+console.log('[DiaTab] Service worker initialized at', new Date().toISOString())
 
 // Handle extension installation
 chrome.runtime.onInstalled.addListener((details) => {
@@ -32,6 +32,7 @@ chrome.runtime.onMessage.addListener(
 )
 
 async function handleMessage(request: MessageRequest): Promise<MessageResponse> {
+  console.log('[DiaTab] Received message:', request.type)
   switch (request.type) {
     case 'ANALYZE_TABS':
       return await analyzeTabs()
@@ -60,10 +61,13 @@ async function handleMessage(request: MessageRequest): Promise<MessageResponse> 
 }
 
 async function handleSetApiKey(apiKey: string): Promise<MessageResponse> {
+  console.log('[DiaTab] Setting API key...')
   try {
     await setApiKey(apiKey)
+    console.log('[DiaTab] API key saved successfully')
     return { success: true, data: null }
   } catch (error) {
+    console.error('[DiaTab] Failed to save API key:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to save API key',
@@ -72,10 +76,13 @@ async function handleSetApiKey(apiKey: string): Promise<MessageResponse> {
 }
 
 async function handleHasApiKey(): Promise<MessageResponse> {
+  console.log('[DiaTab] Checking if API key exists...')
   try {
     const hasKey = await hasApiKey()
+    console.log('[DiaTab] API key exists:', hasKey)
     return { success: true, data: hasKey }
   } catch (error) {
+    console.error('[DiaTab] Failed to check API key:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to check API key',
@@ -89,10 +96,11 @@ interface AnalysisResult {
 }
 
 async function analyzeTabs(): Promise<MessageResponse<AnalysisResult>> {
+  console.log('[DiaTab] Starting tab analysis...')
   try {
     // Get all tabs with enriched metadata
     const tabs = await getAllTabsWithMetadata()
-    console.log(`Found ${tabs.length} tabs with metadata`)
+    console.log(`[DiaTab] Found ${tabs.length} tabs with metadata`)
 
     if (tabs.length === 0) {
       return {
@@ -102,8 +110,9 @@ async function analyzeTabs(): Promise<MessageResponse<AnalysisResult>> {
     }
 
     // Cluster tabs using LLM
+    console.log('[DiaTab] Calling LLM for clustering...')
     const clusterResult = await clusterTabs(tabs)
-    console.log(`LLM returned ${clusterResult.workspaces.length} workspaces`)
+    console.log(`[DiaTab] LLM returned ${clusterResult.workspaces.length} workspaces`)
 
     // Build tab lookup map
     const tabMap = new Map(tabs.map((t) => [t.id, t]))

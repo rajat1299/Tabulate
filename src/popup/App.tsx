@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Trash2,
   RotateCcw,
+  AlertCircle,
 } from 'lucide-react'
 import type { TabData, Workspace, MessageResponse } from '@/types'
 
@@ -26,6 +27,20 @@ interface AnalysisState {
   error?: string
 }
 
+// Safe wrapper for chrome.runtime.sendMessage
+async function sendMessage<T>(message: unknown): Promise<MessageResponse<T>> {
+  try {
+    const response = await chrome.runtime.sendMessage(message)
+    return response as MessageResponse<T>
+  } catch (error) {
+    console.error('sendMessage error:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to communicate with extension',
+    }
+  }
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState<TabView>('organize')
   const [tabCount, setTabCount] = useState(0)
@@ -36,77 +51,100 @@ function App() {
   })
   const [savedWorkspaces, setSavedWorkspaces] = useState<Workspace[]>([])
   const [showSettings, setShowSettings] = useState(false)
+  const [hasKey, setHasKey] = useState<boolean | null>(null)
+  const [initError, setInitError] = useState<string | null>(null)
 
   useEffect(() => {
-    chrome.tabs.query({}, (tabs) => {
-      setTabCount(tabs.length)
-    })
-    loadSavedWorkspaces()
-    checkApiKey()
+    init()
   }, [])
 
+  const init = async () => {
+    try {
+      // Get tab count
+      chrome.tabs.query({}, (tabs) => {
+        setTabCount(tabs.length)
+      })
+
+      // Load saved workspaces
+      await loadSavedWorkspaces()
+
+      // Check API key
+      await checkApiKey()
+    } catch (error) {
+      console.error('Init error:', error)
+      setInitError(error instanceof Error ? error.message : 'Failed to initialize')
+    }
+  }
+
   const checkApiKey = async () => {
-    const response: MessageResponse<boolean> = await chrome.runtime.sendMessage({
-      type: 'HAS_API_KEY',
-    })
-    if (response.success && !response.data) {
-      setAnalysis((prev) => ({ ...prev, status: 'needs-api-key' }))
+    const response = await sendMessage<boolean>({ type: 'HAS_API_KEY' })
+
+    if (response.success) {
+      setHasKey(response.data)
+      if (!response.data) {
+        // No API key - show needs-api-key state
+        setAnalysis((prev) => ({ ...prev, status: 'needs-api-key' }))
+      } else {
+        // Has API key - ensure we're in idle state (not stuck in needs-api-key)
+        setAnalysis((prev) =>
+          prev.status === 'needs-api-key'
+            ? { ...prev, status: 'idle' }
+            : prev
+        )
+      }
+    } else {
+      console.error('Failed to check API key:', response.error)
+      setInitError(response.error)
     }
   }
 
   const loadSavedWorkspaces = async () => {
-    const response: MessageResponse<Workspace[]> = await chrome.runtime.sendMessage({
-      type: 'GET_SAVED_WORKSPACES',
-    })
+    const response = await sendMessage<Workspace[]>({ type: 'GET_SAVED_WORKSPACES' })
+
     if (response.success) {
       setSavedWorkspaces(response.data)
+    } else {
+      console.error('Failed to load workspaces:', response.error)
     }
   }
 
   const handleAnalyzeTabs = async () => {
     setAnalysis({ status: 'loading', workspaces: [], unclustered: [] })
 
-    try {
-      const response: MessageResponse<{
-        workspaces: Workspace[]
-        unclustered: TabData[]
-      }> = await chrome.runtime.sendMessage({ type: 'ANALYZE_TABS' })
+    const response = await sendMessage<{
+      workspaces: Workspace[]
+      unclustered: TabData[]
+    }>({ type: 'ANALYZE_TABS' })
 
-      if (response.success) {
-        setAnalysis({
-          status: 'complete',
-          workspaces: response.data.workspaces,
-          unclustered: response.data.unclustered,
-        })
-      } else {
-        if (response.error.includes('API key')) {
-          setAnalysis({
-            status: 'needs-api-key',
-            workspaces: [],
-            unclustered: [],
-            error: response.error,
-          })
-        } else {
-          setAnalysis({
-            status: 'error',
-            workspaces: [],
-            unclustered: [],
-            error: response.error,
-          })
-        }
-      }
-    } catch (err) {
+    if (response.success) {
       setAnalysis({
-        status: 'error',
-        workspaces: [],
-        unclustered: [],
-        error: err instanceof Error ? err.message : 'Failed to analyze tabs',
+        status: 'complete',
+        workspaces: response.data.workspaces,
+        unclustered: response.data.unclustered,
       })
+    } else {
+      const errorMsg = response.error || 'Unknown error'
+      if (errorMsg.toLowerCase().includes('api key')) {
+        setAnalysis({
+          status: 'needs-api-key',
+          workspaces: [],
+          unclustered: [],
+          error: errorMsg,
+        })
+        setHasKey(false)
+      } else {
+        setAnalysis({
+          status: 'error',
+          workspaces: [],
+          unclustered: [],
+          error: errorMsg,
+        })
+      }
     }
   }
 
   const handleSaveWorkspace = async (workspace: Workspace) => {
-    const response: MessageResponse<Workspace> = await chrome.runtime.sendMessage({
+    const response = await sendMessage<Workspace>({
       type: 'SAVE_WORKSPACE',
       payload: workspace,
     })
@@ -130,22 +168,37 @@ function App() {
   }
 
   const handleDeleteWorkspace = async (workspaceId: string) => {
-    await chrome.runtime.sendMessage({
-      type: 'DELETE_WORKSPACE',
-      payload: workspaceId,
-    })
+    await sendMessage({ type: 'DELETE_WORKSPACE', payload: workspaceId })
     loadSavedWorkspaces()
   }
 
   const handleRestoreWorkspace = async (workspaceId: string) => {
-    await chrome.runtime.sendMessage({
-      type: 'RESTORE_WORKSPACE',
-      payload: workspaceId,
-    })
+    await sendMessage({ type: 'RESTORE_WORKSPACE', payload: workspaceId })
   }
 
   const handleReset = () => {
     setAnalysis({ status: 'idle', workspaces: [], unclustered: [] })
+  }
+
+  const handleApiKeySaved = async () => {
+    await checkApiKey()
+  }
+
+  // Show init error
+  if (initError) {
+    return (
+      <div className="flex flex-col h-popup w-popup bg-background items-center justify-center p-4">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h2 className="text-lg font-medium text-text-primary mb-2">Initialization Error</h2>
+        <p className="text-sm text-text-secondary text-center mb-4">{initError}</p>
+        <button
+          onClick={() => { setInitError(null); init(); }}
+          className="px-4 py-2 bg-primary text-white rounded-lg"
+        >
+          Retry
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -160,16 +213,22 @@ function App() {
           <span className="text-sm text-text-secondary">{tabCount} tabs</span>
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="p-1.5 hover:bg-background rounded-md transition-colors"
+            className={`p-1.5 rounded-md transition-colors ${
+              showSettings ? 'bg-primary/10 text-primary' : 'hover:bg-background text-text-secondary'
+            }`}
           >
-            <Settings className="w-5 h-5 text-text-secondary" />
+            <Settings className="w-5 h-5" />
           </button>
         </div>
       </header>
 
       {/* Settings Panel */}
       {showSettings && (
-        <SettingsPanel onClose={() => setShowSettings(false)} onApiKeySaved={checkApiKey} />
+        <SettingsPanel
+          onClose={() => setShowSettings(false)}
+          onApiKeySaved={handleApiKeySaved}
+          hasExistingKey={hasKey === true}
+        />
       )}
 
       {/* Tab Navigation */}
@@ -220,7 +279,7 @@ function App() {
 
       {/* Footer */}
       <footer className="flex items-center justify-center h-[40px] bg-surface border-t border-border">
-        <p className="text-xs text-text-muted">Powered by Claude via OpenRouter</p>
+        <p className="text-xs text-text-muted">Powered by AI via OpenRouter</p>
       </footer>
     </div>
   )
@@ -229,26 +288,40 @@ function App() {
 interface SettingsPanelProps {
   onClose: () => void
   onApiKeySaved: () => void
+  hasExistingKey: boolean
 }
 
-function SettingsPanel({ onClose, onApiKeySaved }: SettingsPanelProps) {
+function SettingsPanel({ onClose, onApiKeySaved, hasExistingKey }: SettingsPanelProps) {
   const [apiKey, setApiKey] = useState('')
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
 
   const handleSave = async () => {
     if (!apiKey.trim()) return
+
     setSaving(true)
-    await chrome.runtime.sendMessage({
+    setStatus('saving')
+    setErrorMsg('')
+
+    const response = await sendMessage<null>({
       type: 'SET_API_KEY',
       payload: apiKey.trim(),
     })
+
     setSaving(false)
-    setSaved(true)
-    onApiKeySaved()
-    setTimeout(() => {
-      onClose()
-    }, 1000)
+
+    if (response.success) {
+      setStatus('saved')
+      setApiKey('')
+      onApiKeySaved()
+      setTimeout(() => {
+        onClose()
+      }, 1000)
+    } else {
+      setStatus('error')
+      setErrorMsg(response.error || 'Failed to save API key')
+    }
   }
 
   return (
@@ -259,8 +332,20 @@ function SettingsPanel({ onClose, onApiKeySaved }: SettingsPanelProps) {
           <X className="w-4 h-4 text-text-muted" />
         </button>
       </div>
+
+      {hasExistingKey && (
+        <div className="mb-3 p-2 bg-success/10 border border-success/20 rounded-md">
+          <p className="text-xs text-success flex items-center gap-1">
+            <Check className="w-3 h-3" />
+            API key is configured
+          </p>
+        </div>
+      )}
+
       <div className="space-y-2">
-        <label className="text-xs text-text-secondary">OpenRouter API Key</label>
+        <label className="text-xs text-text-secondary">
+          {hasExistingKey ? 'Update API Key' : 'OpenRouter API Key'}
+        </label>
         <div className="flex gap-2">
           <input
             type="password"
@@ -272,11 +357,22 @@ function SettingsPanel({ onClose, onApiKeySaved }: SettingsPanelProps) {
           <button
             onClick={handleSave}
             disabled={saving || !apiKey.trim()}
-            className="px-3 py-2 bg-primary text-white text-sm font-medium rounded-md disabled:opacity-50"
+            className="px-3 py-2 bg-primary text-white text-sm font-medium rounded-md disabled:opacity-50 min-w-[60px]"
           >
-            {saved ? <Check className="w-4 h-4" /> : saving ? '...' : 'Save'}
+            {status === 'saved' ? (
+              <Check className="w-4 h-4 mx-auto" />
+            ) : status === 'saving' ? (
+              <Loader2 className="w-4 h-4 mx-auto animate-spin" />
+            ) : (
+              'Save'
+            )}
           </button>
         </div>
+
+        {status === 'error' && (
+          <p className="text-xs text-red-500">{errorMsg}</p>
+        )}
+
         <a
           href="https://openrouter.ai/settings/keys"
           target="_blank"
@@ -330,9 +426,7 @@ function OrganizeView({
       <div className="flex flex-col items-center justify-center h-full text-center">
         <Loader2 className="w-10 h-10 text-primary mb-4 animate-spin" />
         <h2 className="text-lg font-medium text-text-primary mb-2">Analyzing your tabs...</h2>
-        <p className="text-sm text-text-secondary">
-          AI is clustering tabs by intent
-        </p>
+        <p className="text-sm text-text-secondary">AI is clustering tabs by intent</p>
       </div>
     )
   }
@@ -374,6 +468,11 @@ function OrganizeView({
           </button>
         </div>
         <div className="flex-1 overflow-y-auto space-y-3">
+          {analysis.workspaces.length === 0 && analysis.unclustered.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-sm text-text-muted">No tabs to organize</p>
+            </div>
+          )}
           {analysis.workspaces.map((workspace) => (
             <WorkspaceCard
               key={workspace.id}
@@ -452,19 +551,19 @@ function WorkspaceCard({ workspace, onSave, onDismiss }: WorkspaceCardProps) {
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-lg">
-            {workspace.name.includes('Trip') || workspace.name.includes('Travel')
+            {workspace.name.toLowerCase().includes('trip') || workspace.name.toLowerCase().includes('travel')
               ? '✈️'
-              : workspace.name.includes('Work') || workspace.name.includes('Project')
+              : workspace.name.toLowerCase().includes('work') || workspace.name.toLowerCase().includes('project')
                 ? '💼'
-                : workspace.name.includes('Research')
+                : workspace.name.toLowerCase().includes('research')
                   ? '🔬'
-                  : workspace.name.includes('Shopping')
+                  : workspace.name.toLowerCase().includes('shopping')
                     ? '🛒'
                     : '📁'}
           </span>
           <div className="min-w-0">
             <h3 className="text-sm font-medium text-text-primary truncate">{workspace.name}</h3>
-            <span className="text-xs text-text-muted">{workspace.tabs.length} tabs</span>
+            <span className="text-xs text-text-muted">{workspace.tabs?.length ?? 0} tabs</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -485,7 +584,7 @@ function WorkspaceCard({ workspace, onSave, onDismiss }: WorkspaceCardProps) {
       </div>
 
       {/* Key Entities */}
-      {workspace.keyEntities.length > 0 && (
+      {workspace.keyEntities && workspace.keyEntities.length > 0 && (
         <div className="px-3 pb-2 flex flex-wrap gap-1">
           {workspace.keyEntities.slice(0, 3).map((entity, i) => (
             <span
@@ -503,7 +602,7 @@ function WorkspaceCard({ workspace, onSave, onDismiss }: WorkspaceCardProps) {
         <div className="px-3 pb-3 border-t border-border/50 pt-2">
           {/* Tabs list */}
           <div className="space-y-1 mb-3">
-            {workspace.tabs.map((tab) => (
+            {(workspace.tabs || []).map((tab) => (
               <div key={tab.id} className="flex items-center gap-2 p-1.5 bg-background rounded">
                 {tab.favicon ? (
                   <img src={tab.favicon} alt="" className="w-4 h-4" />
@@ -588,14 +687,11 @@ function SavedWorkspacesView({ workspaces, onDelete, onRestore }: SavedWorkspace
   return (
     <div className="space-y-3">
       {workspaces.map((workspace) => (
-        <div
-          key={workspace.id}
-          className="bg-surface rounded-lg border border-border p-3"
-        >
+        <div key={workspace.id} className="bg-surface rounded-lg border border-border p-3">
           <div className="flex items-start justify-between mb-2">
             <div>
               <h3 className="text-sm font-medium text-text-primary">{workspace.name}</h3>
-              <span className="text-xs text-text-muted">{workspace.tabs.length} tabs</span>
+              <span className="text-xs text-text-muted">{workspace.tabs?.length ?? 0} tabs</span>
             </div>
             <div className="flex gap-1">
               <button
@@ -616,7 +712,7 @@ function SavedWorkspacesView({ workspaces, onDelete, onRestore }: SavedWorkspace
           </div>
           <p className="text-xs text-text-secondary line-clamp-2">{workspace.summary}</p>
           <div className="mt-2 flex flex-wrap gap-1">
-            {workspace.tabs.slice(0, 4).map((tab) => (
+            {(workspace.tabs || []).slice(0, 4).map((tab) => (
               <div
                 key={tab.id}
                 className="flex items-center gap-1 px-1.5 py-0.5 bg-background rounded text-[10px] text-text-muted"
@@ -629,9 +725,9 @@ function SavedWorkspacesView({ workspaces, onDelete, onRestore }: SavedWorkspace
                 <span className="truncate max-w-[80px]">{tab.domain}</span>
               </div>
             ))}
-            {workspace.tabs.length > 4 && (
+            {(workspace.tabs?.length ?? 0) > 4 && (
               <span className="text-[10px] text-text-muted px-1.5 py-0.5">
-                +{workspace.tabs.length - 4} more
+                +{(workspace.tabs?.length ?? 0) - 4} more
               </span>
             )}
           </div>

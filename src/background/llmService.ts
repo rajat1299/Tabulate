@@ -2,7 +2,7 @@ import { OpenRouter } from '@openrouter/sdk'
 import type { TabData, ClusteringResult } from '@/types'
 
 // Model to use for clustering
-const MODEL = 'anthropic/claude-sonnet-4'
+const MODEL = 'x-ai/grok-4.1-fast'
 
 const SYSTEM_PROMPT = `You are an intelligent tab organizer. Analyze browser tabs and group them by user INTENT, not just domain.
 
@@ -180,7 +180,7 @@ Group these ${tabs.length} tabs into meaningful workspaces based on what the use
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3,
-      maxTokens: 2048,
+      maxTokens: 8096,
     })
 
     const messageContent = response.choices[0]?.message?.content
