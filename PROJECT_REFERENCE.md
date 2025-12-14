@@ -341,27 +341,28 @@ Group these tabs into meaningful workspaces based on what the user is trying to 
 
 **Deliverable:** Can extract rich metadata from all open tabs ✅
 
-### Phase 3: AI Integration
-- [ ] Create `llmService.ts` with Anthropic SDK
-- [ ] Implement clustering prompt with system/user messages
-- [ ] Parse JSON response into `ClusteringResult`
-- [ ] Handle API errors gracefully
-- [ ] Build loading state UI ("Analyzing your tabs...")
-- [ ] Create `WorkspaceCard` component
-- [ ] Display clustering results in popup
+### Phase 3: AI Integration ✅ COMPLETE
+- [x] Create `llmService.ts` with OpenRouter SDK (using Claude via OpenRouter)
+- [x] Implement clustering prompt with system/user messages
+- [x] Parse JSON response into `ClusteringResult` with validation
+- [x] Handle API errors gracefully (auth, rate limit, timeout)
+- [x] Build loading state UI ("Analyzing your tabs...")
+- [x] Create `WorkspaceCard` component with expand/collapse
+- [x] Display clustering results with confidence scores
+- [x] API key management (settings panel, storage)
+- [x] Save/dismiss workspace actions
+- [x] Saved workspaces view with restore/delete
 
-**Deliverable:** Analyze tabs and show AI-suggested workspaces
+**Deliverable:** Analyze tabs and show AI-suggested workspaces ✅
 
 ### Phase 4: Persistence & Polish
-- [ ] Implement `storageService.ts` with chrome.storage.local
-- [ ] Save workspace functionality
-- [ ] Saved workspaces tab/view
-- [ ] Restore workspace (reopen tabs)
-- [ ] Delete workspace
+- [x] Storage via chrome.storage.local (in background/index.ts)
+- [x] Save workspace functionality
+- [x] Saved workspaces tab/view
+- [x] Restore workspace (opens tabs in new window)
+- [x] Delete workspace
 - [ ] Create Chrome tab groups for saved workspaces
-- [ ] Move tabs to new window option
 - [ ] UI polish and animations
-- [ ] Error handling and edge cases
 - [ ] Demo preparation
 
 **Deliverable:** Fully functional, demo-ready prototype

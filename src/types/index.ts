@@ -48,7 +48,9 @@ export type MessageRequest =
   | { type: 'SAVE_WORKSPACE'; payload: Workspace }
   | { type: 'GET_SAVED_WORKSPACES' }
   | { type: 'DELETE_WORKSPACE'; payload: string }
-  | { type: 'RESTORE_WORKSPACE'; payload: string };
+  | { type: 'RESTORE_WORKSPACE'; payload: string }
+  | { type: 'SET_API_KEY'; payload: string }
+  | { type: 'HAS_API_KEY' };
 
 export type MessageResponse<T = unknown> =
   | { success: true; data: T }
