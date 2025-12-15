@@ -2,45 +2,136 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Line clamp utilities - ensures text truncation works */
+@layer base {
+  :root {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv11', 'ss01';
+
+    /* Light mode colors */
+    --color-ink: #1C1917;
+    --color-ink-secondary: #57534E;
+    --color-ink-tertiary: #A8A29E;
+    --color-ink-faint: #D6D3D1;
+    --color-canvas: #FFFFFF;
+    --color-canvas-subtle: #FAFAF9;
+    --color-canvas-muted: #F5F5F4;
+    --color-stroke: #E7E5E4;
+    --color-stroke-hover: #D6D3D1;
+  }
+
+  .dark {
+    --color-ink: #FAFAF9;
+    --color-ink-secondary: #A8A29E;
+    --color-ink-tertiary: #78716C;
+    --color-ink-faint: #44403C;
+    --color-canvas: #1C1917;
+    --color-canvas-subtle: #0C0A09;
+    --color-canvas-muted: #292524;
+    --color-stroke: #292524;
+    --color-stroke-hover: #44403C;
+  }
+
+  html, body, #root {
+    width: 420px;
+    height: 580px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  body {
+    background-color: var(--color-canvas-subtle);
+    color: var(--color-ink);
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid #14B8A6;
+    outline-offset: 2px;
+  }
+
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid #14B8A6;
+    outline-offset: 1px;
+  }
+}
+
+@layer components {
+  /* Semantic color classes that respond to theme */
+  .bg-themed-canvas {
+    background-color: var(--color-canvas);
+  }
+  .bg-themed-subtle {
+    background-color: var(--color-canvas-subtle);
+  }
+  .bg-themed-muted {
+    background-color: var(--color-canvas-muted);
+  }
+  .text-themed {
+    color: var(--color-ink);
+  }
+  .text-themed-secondary {
+    color: var(--color-ink-secondary);
+  }
+  .text-themed-tertiary {
+    color: var(--color-ink-tertiary);
+  }
+  .border-themed {
+    border-color: var(--color-stroke);
+  }
+}
+
 @layer utilities {
+  .line-clamp-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .line-clamp-2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
   .line-clamp-3 {
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  .scroll-smooth {
+    scroll-behavior: smooth;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
 }
 
-:root {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-html, body, #root {
-  width: 400px;
-  height: 600px;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-body {
-  background-color: #fafafa;
-}
-
-/* Custom scrollbar */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 ::-webkit-scrollbar-track {
@@ -48,10 +139,52 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
+  background: var(--color-ink-faint);
+  border-radius: 100px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-ink-tertiary);
+}
+
+/* Smooth transitions */
+button, a, input {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+input::placeholder {
+  color: var(--color-ink-tertiary);
+}
+
+::selection {
+  background-color: #CCFBF1;
+  color: #0F766E;
+}
+
+.dark ::selection {
+  background-color: #134E4A;
+  color: #5EEAD4;
+}
+
+/* Keyboard shortcut hint */
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-ink-tertiary);
+  background-color: var(--color-canvas-muted);
+  border: 1px solid var(--color-stroke);
+  border-radius: 4px;
 }

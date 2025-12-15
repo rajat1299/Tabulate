@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Intent-Aware Tab Organizer",
+  "name": "Spaces",
   "version": "1.0.0",
-  "description": "AI-powered tab organization by intent, not domain",
+  "description": "AI-powered tab workspaces. Group tabs by what you're working on.",
   "permissions": [
     "tabs",
     "tabGroups",
@@ -17,7 +17,7 @@
   },
   "action": {
     "default_popup": "src/popup/index.html",
-    "default_title": "Intent Tab Organizer",
+    "default_title": "Spaces",
     "default_icon": {
       "16": "public/icons/icon16.png",
       "48": "public/icons/icon48.png",

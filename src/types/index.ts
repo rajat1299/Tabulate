@@ -1,3 +1,6 @@
+// Chrome tab group colors
+export type WorkspaceColor = 'grey' | 'blue' | 'red' | 'yellow' | 'green' | 'pink' | 'purple' | 'cyan' | 'orange';
+
 // Tab data extracted from browser
 export interface TabData {
   id: number;
@@ -27,6 +30,7 @@ export interface Workspace {
   confidence: number;
   createdAt: number;
   isSaved: boolean;
+  color?: WorkspaceColor;
 }
 
 // LLM clustering response
@@ -49,12 +53,22 @@ export type MessageRequest =
   | { type: 'GET_SAVED_WORKSPACES' }
   | { type: 'DELETE_WORKSPACE'; payload: string }
   | { type: 'RESTORE_WORKSPACE'; payload: string }
+  | { type: 'GROUP_TABS'; payload: { tabIds: number[]; name: string; color: WorkspaceColor } }
   | { type: 'SET_API_KEY'; payload: string }
-  | { type: 'HAS_API_KEY' };
+  | { type: 'HAS_API_KEY' }
+  | { type: 'GET_SETTINGS' }
+  | { type: 'SET_SETTINGS'; payload: Partial<UserSettings> };
 
 export type MessageResponse<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+// User settings
+export interface UserSettings {
+  theme: 'light' | 'dark' | 'system';
+  defaultColor: WorkspaceColor;
+  autoGroupOnSave: boolean;
+}
 
 // Analysis state for UI
 export type AnalysisState =
@@ -66,9 +80,13 @@ export type AnalysisState =
 // Storage schema
 export interface StorageSchema {
   savedWorkspaces: Workspace[];
-  apiKey?: string;
-  settings?: {
-    autoGroup: boolean;
-    showConfidence: boolean;
-  };
+  openRouterApiKey?: string;
+  settings: UserSettings;
 }
+
+// Default settings
+export const DEFAULT_SETTINGS: UserSettings = {
+  theme: 'light',
+  defaultColor: 'blue',
+  autoGroupOnSave: true,
+};
